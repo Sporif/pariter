@@ -64,10 +64,11 @@ where
         num
     }
 
-    fn with_common<O>(
+    #[allow(clippy::type_complexity)]
+    fn with_common<'a, O>(
         self,
     ) -> (
-        ParallelMap<I, O>,
+        ParallelMap<'a, I, O>,
         Receiver<(usize, I::Item)>,
         Sender<(usize, O)>,
     )
@@ -87,6 +88,7 @@ where
             ParallelMap {
                 iter: self.iter,
                 iter_done: false,
+                map_fn: None,
                 worker_panicked: Arc::new(AtomicBool::new(false)),
                 num_threads,
                 buffer_size,
@@ -103,7 +105,7 @@ where
         )
     }
 
-    pub fn with<F, O>(self, f: F) -> ParallelMap<I, O>
+    pub fn with<F, O>(self, f: F) -> ParallelMap<'static, I, O>
     where
         I: Iterator + 'static,
         F: 'static + Send + Clone,
@@ -111,22 +113,26 @@ where
         I::Item: Send + 'static,
         F: FnMut(I::Item) -> O,
     {
-        let (ret, in_rx, out_tx) = self.with_common();
+        let (mut ret, in_rx, out_tx) = self.with_common();
 
-        for _ in 0..ret.num_threads {
-            let in_rx = in_rx.clone();
-            let out_tx = out_tx.clone();
-            let mut f = f.clone();
-            let drop_indicator = DropIndicator::new(ret.worker_panicked.clone());
+        if ret.num_threads == 1 {
+            ret.map_fn = Some(Box::new(f))
+        } else {
+            for _ in 0..ret.num_threads {
+                let in_rx = in_rx.clone();
+                let out_tx = out_tx.clone();
+                let mut f = f.clone();
+                let drop_indicator = DropIndicator::new(ret.worker_panicked.clone());
 
-            std::thread::spawn(move || {
-                for (i, item) in in_rx.into_iter() {
-                    // we ignore send failures, if the receiver is gone
-                    // we just throw the work away
-                    let _ = out_tx.send((i, (f)(item)));
-                }
-                drop_indicator.cancel();
-            });
+                std::thread::spawn(move || {
+                    for (i, item) in in_rx.into_iter() {
+                        // we ignore send failures, if the receiver is gone
+                        // we just throw the work away
+                        let _ = out_tx.send((i, (f)(item)));
+                    }
+                    drop_indicator.cancel();
+                });
+            }
         }
 
         ret
@@ -136,7 +142,7 @@ where
         self,
         scope: &'scope Scope<'env>,
         f: F,
-    ) -> ParallelMap<I, O>
+    ) -> ParallelMap<'env, I, O>
     where
         I: Iterator + 'env,
         F: 'env + Send + Clone,
@@ -144,22 +150,26 @@ where
         I::Item: Send + 'env,
         F: FnMut(I::Item) -> O,
     {
-        let (ret, in_rx, out_tx) = self.with_common();
+        let (mut ret, in_rx, out_tx) = self.with_common();
 
-        for _ in 0..ret.num_threads {
-            let in_rx = in_rx.clone();
-            let out_tx = out_tx.clone();
-            let mut f = f.clone();
-            let drop_indicator = DropIndicator::new(ret.worker_panicked.clone());
+        if ret.num_threads == 1 {
+            ret.map_fn = Some(Box::new(f))
+        } else {
+            for _ in 0..ret.num_threads {
+                let in_rx = in_rx.clone();
+                let out_tx = out_tx.clone();
+                let mut f = f.clone();
+                let drop_indicator = DropIndicator::new(ret.worker_panicked.clone());
 
-            scope.spawn(move |_scope| {
-                for (i, item) in in_rx.into_iter() {
-                    // we ignore send failures, if the receiver is gone
-                    // we just throw the work away
-                    let _ = out_tx.send((i, (f)(item)));
-                }
-                drop_indicator.cancel();
-            });
+                scope.spawn(move |_scope| {
+                    for (i, item) in in_rx.into_iter() {
+                        // we ignore send failures, if the receiver is gone
+                        // we just throw the work away
+                        let _ = out_tx.send((i, (f)(item)));
+                    }
+                    drop_indicator.cancel();
+                });
+            }
         }
 
         ret
@@ -167,7 +177,7 @@ where
 }
 
 /// Like [`std::iter::Map`] but multi-threaded
-pub struct ParallelMap<I, O>
+pub struct ParallelMap<'a, I, O>
 where
     I: Iterator,
 {
@@ -175,6 +185,8 @@ where
     iter: I,
     // is `iter` exhausted
     iter_done: bool,
+    // Map function in case only 1 thread was specified
+    map_fn: Option<Box<dyn (FnMut(I::Item) -> O) + 'a + Send>>,
     // number of worker threads to use
     num_threads: usize,
     // max number of items in flight
@@ -191,7 +203,7 @@ where
     inner: Option<ParallelMapInner<I::Item, O>>,
 }
 
-impl<I, O> ParallelMap<I, O>
+impl<'a, I, O> ParallelMap<'a, I, O>
 where
     I: Iterator,
     I::Item: Send,
@@ -223,7 +235,7 @@ where
     }
 }
 
-impl<I, O> Iterator for ParallelMap<I, O>
+impl<'a, I, O> Iterator for ParallelMap<'a, I, O>
 where
     I: Iterator,
     I::Item: Send,
@@ -232,6 +244,10 @@ where
     type Item = O;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.num_threads == 1 {
+            return self.iter.next().map(self.map_fn.as_mut().unwrap());
+        }
+
         self.pump_tx();
 
         loop {

@@ -19,7 +19,7 @@ where
         Self(self.0.buffer_size(num))
     }
 
-    pub fn with<F>(self, mut f: F) -> ParallelFilter<I>
+    pub fn with<F>(self, mut f: F) -> ParallelFilter<'static, I>
     where
         I: Iterator + 'static,
         F: 'static + Send + Clone,
@@ -35,7 +35,7 @@ where
         self,
         scope: &'scope Scope<'env>,
         mut f: F,
-    ) -> ParallelFilter<I>
+    ) -> ParallelFilter<'env, I>
     where
         I: Iterator + 'env,
         F: 'env + Send + Clone,
@@ -51,15 +51,15 @@ where
 }
 
 /// Like [`std::iter::Filter`] but multi-threaded
-pub struct ParallelFilter<I>
+pub struct ParallelFilter<'a, I>
 where
     I: Iterator,
 {
     // the iterator we wrapped
-    iter: ParallelMap<I, Option<I::Item>>,
+    iter: ParallelMap<'a, I, Option<I::Item>>,
 }
 
-impl<I> Iterator for ParallelFilter<I>
+impl<'a, I> Iterator for ParallelFilter<'a, I>
 where
     I: Iterator,
     I::Item: Send,

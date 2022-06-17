@@ -36,7 +36,7 @@ pub trait IteratorExt {
     ///
     /// No items will be pulled until first time [`ParallelMap`] is pulled for elements with [`ParallelMap::next`].
     /// In that respect, `ParallelMap` behaves like every other iterator and is lazy.
-    fn parallel_map<F, O>(self, f: F) -> ParallelMap<Self, O>
+    fn parallel_map<F, O>(self, f: F) -> ParallelMap<'static, Self, O>
     where
         Self: Sized,
         Self: Iterator + 'static,
@@ -49,7 +49,7 @@ pub trait IteratorExt {
     }
 
     /// See [`IteratorExt::parallel_map`]
-    fn parallel_map_custom<F, O, OF>(self, of: OF, f: F) -> ParallelMap<Self, O>
+    fn parallel_map_custom<F, O, OF>(self, of: OF, f: F) -> ParallelMap<'static, Self, O>
     where
         Self: Sized,
         Self: Iterator + 'static,
@@ -70,7 +70,7 @@ pub trait IteratorExt {
         self,
         scope: &'scope Scope<'env>,
         f: F,
-    ) -> ParallelMap<Self, O>
+    ) -> ParallelMap<'env, Self, O>
     where
         Self: Sized,
         Self: Iterator + 'env,
@@ -88,7 +88,7 @@ pub trait IteratorExt {
         scope: &'scope Scope<'env>,
         of: OF,
         f: F,
-    ) -> ParallelMap<Self, O>
+    ) -> ParallelMap<'env, Self, O>
     where
         Self: Sized,
         Self: Iterator + 'env,
@@ -104,7 +104,7 @@ pub trait IteratorExt {
     /// Run `filter` function in parallel on multiple threads
     ///
     /// A wrapper around [`IteratorExt::parallel_map`] really, so it has similiar properties.
-    fn parallel_filter<F>(self, f: F) -> ParallelFilter<Self>
+    fn parallel_filter<F>(self, f: F) -> ParallelFilter<'static, Self>
     where
         Self: Sized,
         Self: Iterator + 'static,
@@ -116,7 +116,7 @@ pub trait IteratorExt {
     }
 
     /// See [`IteratorExt::parallel_filter`]
-    fn parallel_filter_custom<F, OF>(self, of: OF, f: F) -> ParallelFilter<Self>
+    fn parallel_filter_custom<F, OF>(self, of: OF, f: F) -> ParallelFilter<'static, Self>
     where
         Self: Sized,
         Self: Iterator + 'static,
@@ -133,7 +133,7 @@ pub trait IteratorExt {
         self,
         scope: &'scope Scope<'env>,
         f: F,
-    ) -> ParallelFilter<Self>
+    ) -> ParallelFilter<'env, Self>
     where
         Self: Sized,
         Self: Iterator + 'env,
@@ -150,7 +150,7 @@ pub trait IteratorExt {
         scope: &'scope Scope<'env>,
         of: OF,
         f: F,
-    ) -> ParallelFilter<Self>
+    ) -> ParallelFilter<'env, Self>
     where
         Self: Sized,
         Self: Iterator + 'env,

@@ -17,6 +17,8 @@ where
     iter: I,
     // max number of items in flight
     buffer_size: Option<usize>,
+    // Runtime disabling of readahead
+    serial: bool,
 }
 
 impl<I> ReadaheadBuilder<I>
@@ -27,6 +29,7 @@ where
         Self {
             iter,
             buffer_size: None,
+            serial: false,
         }
     }
 
@@ -37,7 +40,14 @@ where
         }
     }
 
-    fn with_common(self) -> (Readahead<I>, Sender<I::Item>, I)
+    pub fn serial(self, val: bool) -> Self {
+        Self {
+            serial: val,
+            ..self
+        }
+    }
+
+    fn with_common(self) -> (Readahead<I>, Sender<I::Item>, I, bool)
     where
         I: Iterator,
     {
@@ -46,6 +56,7 @@ where
         let (tx, rx) = crossbeam_channel::bounded(buffer_size);
         (
             Readahead {
+                iter: None,
                 _iter_marker: PhantomData,
                 iter_size_hint: self.iter.size_hint(),
                 inner: Some(ReadaheadInner { rx }),
@@ -53,6 +64,7 @@ where
             },
             tx,
             self.iter,
+            self.serial,
         )
     }
 
@@ -61,16 +73,20 @@ where
         I: Iterator + 'static + Send,
         I::Item: Send + 'static,
     {
-        let (ret, tx, mut iter) = self.with_common();
+        let (mut ret, tx, mut iter, serial) = self.with_common();
 
-        let drop_indicator = DropIndicator::new(ret.worker_panicked.clone());
-        thread::spawn(move || {
-            while let Some(i) = iter.next() {
-                // don't panic if the receiver disconnects
-                let _ = tx.send(i);
-            }
-            drop_indicator.cancel();
-        });
+        if serial {
+            ret.iter = Some(iter)
+        } else {
+            let drop_indicator = DropIndicator::new(ret.worker_panicked.clone());
+            thread::spawn(move || {
+                for i in iter.by_ref() {
+                    // don't panic if the receiver disconnects
+                    let _ = tx.send(i);
+                }
+                drop_indicator.cancel();
+            });
+        }
 
         ret
     }
@@ -80,16 +96,20 @@ where
         I: Iterator + 'env + Send,
         I::Item: Send + 'env,
     {
-        let (ret, tx, mut iter) = self.with_common();
+        let (mut ret, tx, mut iter, serial) = self.with_common();
 
-        let drop_indicator = DropIndicator::new(ret.worker_panicked.clone());
-        scope.spawn(move |_scope| {
-            while let Some(i) = iter.next() {
-                // don't panic if the receiver disconnects
-                let _ = tx.send(i);
-            }
-            drop_indicator.cancel();
-        });
+        if serial {
+            ret.iter = Some(iter)
+        } else {
+            let drop_indicator = DropIndicator::new(ret.worker_panicked.clone());
+            scope.spawn(move |_scope| {
+                for i in iter.by_ref() {
+                    // don't panic if the receiver disconnects
+                    let _ = tx.send(i);
+                }
+                drop_indicator.cancel();
+            });
+        }
 
         ret
     }
@@ -100,6 +120,7 @@ pub struct Readahead<I>
 where
     I: Iterator,
 {
+    iter: Option<I>,
     _iter_marker: PhantomData<I>,
     iter_size_hint: (usize, Option<usize>),
     inner: Option<ReadaheadInner<I>>,
@@ -122,16 +143,20 @@ where
     type Item = I::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.inner.as_ref().expect("thread started").rx.recv() {
-            Ok(i) => Some(i),
-            Err(crossbeam_channel::RecvError) => {
-                if self
-                    .worker_panicked
-                    .load(std::sync::atomic::Ordering::SeqCst)
-                {
-                    panic!("readahead worker thread panicked: panic indicator set");
-                } else {
-                    None
+        if let Some(iter) = &mut self.iter {
+            iter.next()
+        } else {
+            match self.inner.as_ref().expect("thread started").rx.recv() {
+                Ok(i) => Some(i),
+                Err(crossbeam_channel::RecvError) => {
+                    if self
+                        .worker_panicked
+                        .load(std::sync::atomic::Ordering::SeqCst)
+                    {
+                        panic!("readahead worker thread panicked: panic indicator set");
+                    } else {
+                        None
+                    }
                 }
             }
         }

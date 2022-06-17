@@ -7,7 +7,6 @@ use quickcheck_macros::quickcheck;
 fn map_vs_map_parallel(v: Vec<usize>, threads: usize, max_in_flight: usize) -> bool {
     let m: Vec<_> = v.clone().into_iter().map(|x| x / 2).collect();
     let mp: Vec<_> = v
-        .clone()
         .into_iter()
         .parallel_map_custom(
             |o| o.threads(threads % 32).buffer_size(max_in_flight % 128),
@@ -22,7 +21,6 @@ fn map_vs_map_parallel(v: Vec<usize>, threads: usize, max_in_flight: usize) -> b
 fn map_vs_map_parallel_double(v: Vec<usize>, threads: usize, max_in_flight: usize) -> bool {
     let m: Vec<_> = v.clone().into_iter().map(|x| x / 2).collect();
     let mp: Vec<_> = v
-        .clone()
         .into_iter()
         .parallel_map_custom(
             |o| o.threads(threads % 32).buffer_size(max_in_flight % 128),
@@ -55,7 +53,6 @@ fn map_vs_map_parallel_scoped_double(v: Vec<usize>, threads: usize, max_in_fligh
 fn map_vs_map_parallel_with_readahead(v: Vec<usize>, threads: usize) -> bool {
     let m: Vec<_> = v.clone().into_iter().map(|x| x / 2).collect();
     let mp: Vec<_> = v
-        .clone()
         .into_iter()
         .parallel_map_custom(|o| o.threads(threads % 32), |x| x / 2)
         .readahead()
@@ -125,7 +122,6 @@ fn check_profile_compiles(v: Vec<usize>) -> bool {
 fn iter_vs_readhead(v: Vec<usize>, out: usize) -> bool {
     let m: Vec<_> = v.clone().into_iter().map(|x| x / 2).collect();
     let mp: Vec<_> = v
-        .clone()
         .into_iter()
         .readahead_custom(|o| o.buffer_size(out % 32))
         .map(|x| x / 2)
@@ -151,11 +147,7 @@ fn iter_vs_readhead_scoped(v: Vec<usize>, out: usize) -> bool {
 #[quickcheck]
 fn filter_vs_parallel_filter(v: Vec<usize>) -> bool {
     let m: Vec<_> = v.clone().into_iter().filter(|x| x % 2 == 0).collect();
-    let mp: Vec<_> = v
-        .clone()
-        .into_iter()
-        .parallel_filter(|x| x % 2 == 0)
-        .collect();
+    let mp: Vec<_> = v.into_iter().parallel_filter(|x| x % 2 == 0).collect();
 
     m == mp
 }
