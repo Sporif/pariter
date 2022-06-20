@@ -1,6 +1,6 @@
-use crate::{ParallelMap, ParallelMapBuilder, Scope};
+use crate::{ParallelFilterMap, ParallelFilterMapBuilder, Scope};
 
-pub struct ParallelFilterBuilder<I>(ParallelMapBuilder<I>)
+pub struct ParallelFilterBuilder<I>(ParallelFilterMapBuilder<I>)
 where
     I: Iterator;
 
@@ -9,7 +9,7 @@ where
     I: Iterator,
 {
     pub fn new(iter: I) -> Self {
-        Self(ParallelMapBuilder::new(iter))
+        Self(ParallelFilterMapBuilder::new(iter))
     }
 
     pub fn threads(self, num: usize) -> Self {
@@ -56,7 +56,7 @@ where
     I: Iterator,
 {
     // the iterator we wrapped
-    iter: ParallelMap<'a, I, Option<I::Item>>,
+    iter: ParallelFilterMap<'a, I, I::Item>,
 }
 
 impl<'a, I> Iterator for ParallelFilter<'a, I>
@@ -67,13 +67,7 @@ where
     type Item = I::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            match self.iter.next() {
-                Some(Some(item)) => return Some(item),
-                Some(None) => continue,
-                None => return None,
-            }
-        }
+        self.iter.next()
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

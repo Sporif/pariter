@@ -13,6 +13,9 @@ pub use self::readahead::{Readahead, ReadaheadBuilder};
 mod parallel_filter;
 pub use self::parallel_filter::{ParallelFilter, ParallelFilterBuilder};
 
+mod parallel_filter_map;
+pub use self::parallel_filter_map::{ParallelFilterMap, ParallelFilterMapBuilder};
+
 pub mod profile;
 pub use self::profile::{
     ProfileEgress, ProfileIngress, Profiler, TotalTimeProfiler, TotalTimeStats,
@@ -161,6 +164,76 @@ pub trait IteratorExt {
     {
         of(ParallelFilterBuilder::new(self)).with_scoped(scope, f)
     }
+
+    /// Run `filter_map` function in parallel on multiple threads
+    ///
+    /// A wrapper around [`IteratorExt::parallel_map`] really, so it has similiar properties.
+    fn parallel_filter_map<F, O>(self, f: F) -> ParallelFilterMap<'static, Self, O>
+    where
+        Self: Sized,
+        Self: Iterator + 'static,
+        F: 'static + Send + Clone,
+        Self::Item: Send + 'static,
+        O: Send + 'static,
+        F: FnMut(Self::Item) -> Option<O>,
+    {
+        ParallelFilterMapBuilder::new(self).with(f)
+    }
+
+    /// See [`IteratorExt::parallel_filter_map`]
+    fn parallel_filter_map_custom<F, O, OF>(
+        self,
+        of: OF,
+        f: F,
+    ) -> ParallelFilterMap<'static, Self, O>
+    where
+        Self: Sized,
+        Self: Iterator + 'static,
+        F: 'static + Send + Clone,
+        Self::Item: Send + 'static,
+        O: Send + 'static,
+        F: FnMut(Self::Item) -> Option<O>,
+        OF: FnOnce(ParallelFilterMapBuilder<Self>) -> ParallelFilterMapBuilder<Self>,
+    {
+        of(ParallelFilterMapBuilder::new(self)).with(f)
+    }
+
+    /// See [`IteratorExt::parallel_filter_map`]
+    fn parallel_filter_map_scoped<'env, 'scope, F, O>(
+        self,
+        scope: &'scope Scope<'env>,
+        f: F,
+    ) -> ParallelFilterMap<'env, Self, O>
+    where
+        Self: Sized,
+        Self: Iterator + 'env,
+        F: 'env + Send + Clone,
+        Self::Item: Send + 'env,
+        O: Send + 'env,
+        F: FnMut(Self::Item) -> Option<O>,
+    {
+        ParallelFilterMapBuilder::new(self).with_scoped(scope, f)
+    }
+
+    /// See [`IteratorExt::parallel_filter_map`]
+    fn parallel_filter_map_scoped_custom<'env, 'scope, F, O, OF>(
+        self,
+        scope: &'scope Scope<'env>,
+        of: OF,
+        f: F,
+    ) -> ParallelFilterMap<'env, Self, O>
+    where
+        Self: Sized,
+        Self: Iterator + 'env,
+        F: 'env + Send + Clone,
+        Self::Item: Send + 'env,
+        F: FnMut(Self::Item) -> Option<O>,
+        O: Send + 'env,
+        OF: FnOnce(ParallelFilterMapBuilder<Self>) -> ParallelFilterMapBuilder<Self>,
+    {
+        of(ParallelFilterMapBuilder::new(self)).with_scoped(scope, f)
+    }
+
     /// Run the current iterator in another thread and return elements
     /// through a buffered channel.
     ///

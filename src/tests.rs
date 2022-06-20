@@ -165,6 +165,40 @@ fn filter_vs_parallel_filter_scoped(v: Vec<usize>) -> bool {
     m == mp
 }
 
+#[quickcheck]
+fn filter_map_vs_parallel_filter_map(v: Vec<usize>) -> bool {
+    let m: Vec<_> = v
+        .clone()
+        .into_iter()
+        .filter_map(|x| (x % 2 == 0).then(|| x / 2))
+        .collect();
+    let mp: Vec<_> = v
+        .clone()
+        .into_iter()
+        .parallel_filter_map(|x| (x % 2 == 0).then(|| x / 2))
+        .collect();
+    dbg!(&v, &m, &mp);
+
+    m == mp
+}
+
+#[quickcheck]
+fn filter_map_vs_parallel_filter_map_scoped(v: Vec<usize>) -> bool {
+    let m: Vec<_> = v
+        .iter()
+        .filter_map(|x| (x % 2 == 0).then(|| x / 2))
+        .collect();
+    let mp: Vec<_> = super::scope(|s| {
+        v.iter()
+            .parallel_filter_map_scoped(s, |x| (x % 2 == 0).then(|| x / 2))
+            .collect()
+    })
+    .expect("failed");
+    dbg!(&v, &m, &mp);
+
+    m == mp
+}
+
 #[test]
 #[should_panic]
 fn panic_always_1() {
