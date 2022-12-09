@@ -43,8 +43,7 @@ fn map_vs_map_parallel_scoped_double(v: Vec<usize>, threads: usize, max_in_fligh
             .parallel_map_scoped_custom(s, |o| o.threads(threads % 32), |x| x / 2)
             .parallel_map_scoped_custom(s, |o| o.buffer_size(max_in_flight % 128), |x| x)
             .collect()
-    })
-    .expect("failed");
+    });
 
     m == mp
 }
@@ -81,8 +80,7 @@ fn map_vs_map_parallel_scoped_with_readahead(
             .readahead_scoped(s)
             .parallel_map_scoped_custom(s, |o| o.threads(threads % 32), |x| x)
             .collect()
-    })
-    .expect("failed");
+    });
 
     m == mp
 }
@@ -112,8 +110,7 @@ fn check_profile_compiles(v: Vec<usize>) -> bool {
             .readahead_scoped(s)
             .parallel_map_scoped_custom(s, |o| o, |x| x)
             .collect()
-    })
-    .expect("failed");
+    });
 
     m == mp
 }
@@ -138,8 +135,7 @@ fn iter_vs_readhead_scoped(v: Vec<usize>, out: usize) -> bool {
             .readahead_scoped_custom(s, |o| o.buffer_size(out % 32))
             .map(|x| x / 2)
             .collect()
-    })
-    .expect("failed");
+    });
 
     m == mp
 }
@@ -159,8 +155,7 @@ fn filter_vs_parallel_filter_scoped(v: Vec<usize>) -> bool {
         v.iter()
             .parallel_filter_scoped(s, |x| *x % 2 == 0)
             .collect()
-    })
-    .expect("failed");
+    });
 
     m == mp
 }
@@ -192,8 +187,7 @@ fn filter_map_vs_parallel_filter_map_scoped(v: Vec<usize>) -> bool {
         v.iter()
             .parallel_filter_map_scoped(s, |x| (x % 2 == 0).then(|| x / 2))
             .collect()
-    })
-    .expect("failed");
+    });
     dbg!(&v, &m, &mp);
 
     m == mp

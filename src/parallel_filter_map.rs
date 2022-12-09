@@ -34,7 +34,7 @@ where
 
     pub fn with_scoped<'env, 'scope, F, O>(
         self,
-        scope: &'scope Scope<'env>,
+        scope: &'scope Scope<'scope, 'env>,
         f: F,
     ) -> ParallelFilterMap<'env, I, O>
     where

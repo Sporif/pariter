@@ -41,7 +41,6 @@ where
 ///             println!("{i}");
 ///         })
 /// })
-/// .expect("thread panicked");
 /// ```
 #[derive(Debug)]
 pub struct TotalTimeProfiler<Reporter> {

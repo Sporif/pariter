@@ -108,7 +108,7 @@ But no problem, we got you covered.
 First, if the values you are iterating over can be cheaply cloned, just try
 adding `.cloned()` and turning them into owned values.
 
-If you can't, you can use scoped-threads API from [`crossbeam`] crate:
+If you can't, you can use scoped-threads API from [`std`]:
 
 
 ```rust
@@ -145,12 +145,12 @@ assert_eq!(
     .iter()
     .parallel_map_scoped(scope, step_a)
     .filter(filter_b)
-    .map(step_c).collect::<Vec<_>>()}).expect("handle errors properly in production code"),
+    .map(step_c).collect::<Vec<_>>()}),
     vec![1, 15, 29, 43, 57]
 );
 ```
 
-The additional `scope` argument comes from [`crossbeam::thread::scope`] and is
+The additional `scope` argument comes from [`std::thread::scope`] and is
 there to enforce memory-safety. Just wrap your iterator chain in a `scope`
 wrapper that does not outlive the borrowed value, and everything will work smoothly.
 

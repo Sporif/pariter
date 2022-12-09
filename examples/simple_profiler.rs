@@ -75,8 +75,7 @@ fn main() {
             .for_each(|i| {
                 println!("{i}");
             })
-    })
-    .expect("thread panicked");
+    });
 
     (0..22)
         .profile_egress(StderrMsgProfiler::new("sending"))
@@ -103,6 +102,5 @@ fn main() {
             .for_each(|i| {
                 println!("{i}");
             })
-    })
-    .expect("thread panicked");
+    });
 }
