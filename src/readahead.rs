@@ -1,4 +1,4 @@
-use crossbeam_channel::Sender;
+use flume::{bounded, Receiver, Sender};
 
 use crate::Scope;
 use std::{
@@ -53,7 +53,7 @@ where
     {
         let buffer_size = self.buffer_size.unwrap_or(0);
 
-        let (tx, rx) = crossbeam_channel::bounded(buffer_size);
+        let (tx, rx) = bounded(buffer_size);
         (
             Readahead {
                 iter: None,
@@ -131,7 +131,7 @@ struct ReadaheadInner<I>
 where
     I: Iterator,
 {
-    rx: crossbeam_channel::Receiver<I::Item>,
+    rx: Receiver<I::Item>,
 }
 
 impl<I> Iterator for Readahead<I>
@@ -148,7 +148,7 @@ where
         } else {
             match self.inner.as_ref().expect("thread started").rx.recv() {
                 Ok(i) => Some(i),
-                Err(crossbeam_channel::RecvError) => {
+                Err(_e) => {
                     if self
                         .worker_panicked
                         .load(std::sync::atomic::Ordering::SeqCst)

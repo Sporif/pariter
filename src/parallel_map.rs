@@ -1,4 +1,4 @@
-use crossbeam_channel::{Receiver, Sender};
+use flume::{bounded, Receiver, RecvTimeoutError, Sender};
 
 use super::{DropIndicator, Scope};
 
@@ -11,8 +11,8 @@ use std::{
 };
 
 struct ParallelMapInner<I, O> {
-    tx: Option<crossbeam_channel::Sender<(usize, I)>>,
-    rx: crossbeam_channel::Receiver<(usize, O)>,
+    tx: Option<Sender<(usize, I)>>,
+    rx: Receiver<(usize, O)>,
 }
 
 pub struct ParallelMapBuilder<I>
@@ -80,8 +80,8 @@ where
         // Note: we have enought capacity on both ends to hold all items
         // in progress, though the actual amount of items in flight is controlled
         // by `pump_tx`.
-        let (in_tx, in_rx) = crossbeam_channel::bounded(buffer_size);
-        let (out_tx, out_rx) = crossbeam_channel::bounded(buffer_size);
+        let (in_tx, in_rx) = bounded(buffer_size);
+        let (out_tx, out_rx) = bounded(buffer_size);
 
         (
             ParallelMap {
@@ -286,12 +286,12 @@ where
                         self.out_of_order.push((item_i, item));
                     }
                 }
-                Err(crossbeam_channel::RecvTimeoutError::Timeout) => {
+                Err(RecvTimeoutError::Timeout) => {
                     if self.worker_panicked.load(SeqCst) {
                         panic!("parallel_map worker thread panicked: panic indicator set");
                     }
                 }
-                Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
+                Err(RecvTimeoutError::Disconnected) => {
                     panic!("parallel_map worker thread panicked: channel disconnected");
                 }
             }
