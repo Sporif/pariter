@@ -170,12 +170,12 @@ fn filter_map_vs_parallel_filter_map(v: Vec<usize>) -> bool {
     let m: Vec<_> = v
         .clone()
         .into_iter()
-        .filter_map(|x| (x % 2 == 0).then(|| x / 2))
+        .filter_map(|x| (x % 2 == 0).then_some(x / 2))
         .collect();
     let mp: Vec<_> = v
         .clone()
         .into_iter()
-        .parallel_filter_map(|x| (x % 2 == 0).then(|| x / 2))
+        .parallel_filter_map(|x| (x % 2 == 0).then_some(x / 2))
         .collect();
     dbg!(&v, &m, &mp);
 
