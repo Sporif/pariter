@@ -320,7 +320,7 @@ pub trait IteratorExt {
     /// Literally `.profile_egress(tx_profiler).readahead(n).profile_ingress(rx_profiler)`
     ///
     /// See [`Profiler`] for more info.
-    fn readahead_profiled<TxP: profile::Profiler, RxP: profile::Profiler>(
+    fn readahead_profiled<TxP, RxP: profile::Profiler>(
         self,
         tx_profiler: TxP,
         rx_profiler: RxP,
@@ -330,7 +330,7 @@ pub trait IteratorExt {
         Self: Sized,
         Self: Send + 'static,
         Self::Item: Send + 'static,
-        TxP: Send + 'static,
+        TxP: Send + 'static + profile::Profiler,
     {
         self.profile_egress(tx_profiler)
             .readahead()
@@ -342,7 +342,7 @@ pub trait IteratorExt {
     /// Literally `.profile_egress(tx_profiler).readahead_scoped(scope, n).profile_ingress(rx_profiler)`
     ///
     /// See [`Profiler`] for more info.
-    fn readahead_scoped_profiled<'env, 'scope, TxP: profile::Profiler, RxP: profile::Profiler>(
+    fn readahead_scoped_profiled<'env, 'scope, TxP, RxP: profile::Profiler>(
         self,
         scope: &'scope Scope<'scope, 'env>,
         tx_profiler: TxP,
@@ -352,7 +352,7 @@ pub trait IteratorExt {
         Self: Sized + Send,
         Self: Iterator + 'scope + 'env,
         Self::Item: Send + 'env + 'scope + Send,
-        TxP: Send + 'static,
+        TxP: Send + 'static + profile::Profiler,
     {
         self.profile_egress(tx_profiler)
             .readahead_scoped(scope)

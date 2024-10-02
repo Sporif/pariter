@@ -55,10 +55,9 @@ impl pariter::Profiler for StderrMsgProfiler {
 fn main() {
     pariter::scope(|scope| {
         (0..22)
-            .map(|i| {
+            .inspect(|_| {
                 // make producting values slow
                 std::thread::sleep(time::Duration::from_millis(10));
-                i
             })
             .readahead_scoped_profiled(
                 scope,
@@ -89,10 +88,9 @@ fn main() {
 
     pariter::scope(|scope| {
         (0..22)
-            .map(|i| {
+            .inspect(|_| {
                 // make producting values slow
                 std::thread::sleep(time::Duration::from_millis(10));
-                i
             })
             .readahead_scoped_profiled(
                 scope,

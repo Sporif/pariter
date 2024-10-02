@@ -179,10 +179,7 @@ fn filter_map_vs_parallel_filter_map(v: Vec<usize>) -> bool {
 
 #[quickcheck]
 fn filter_map_vs_parallel_filter_map_scoped(v: Vec<usize>) -> bool {
-    let m: Vec<_> = v
-        .iter()
-        .filter_map(|x| (x % 2 == 0).then(|| x / 2))
-        .collect();
+    let m: Vec<_> = v.iter().filter(|&x| (x % 2 == 0)).map(|x| x / 2).collect();
     let mp: Vec<_> = super::scope(|s| {
         v.iter()
             .parallel_filter_map_scoped(s, |x| (x % 2 == 0).then(|| x / 2))
